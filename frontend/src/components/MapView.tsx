@@ -47,7 +47,62 @@ const gems: Gem[] = [
 ]
 
 const filters = ['All', 'Architecture', 'History', 'Hidden Gems', 'Nature', 'Art & Culture', 'Cafes']
-const navItems = ['Explore', 'Tours', 'Map Layers', 'Collections', 'AI Chat', 'Settings']
+const navItems = [
+  { label: 'Explore', icon: 'compass' },
+  { label: 'Tours', icon: 'map' },
+  { label: 'Map Layers', icon: 'layers' },
+  { label: 'Collections', icon: 'collection' },
+  { label: 'AI Chat', icon: 'chat' },
+  { label: 'Settings', icon: 'settings' },
+]
+
+function NavIcon({ name }: { name: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      {name === 'compass' ? (
+        <>
+          <circle cx="12" cy="12" r="8" />
+          <path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1 5.1-2.1Z" />
+        </>
+      ) : null}
+      {name === 'map' ? (
+        <>
+          <path d="m8 5 8-2 4 2v14l-8 2-8-2V5l4 2Z" />
+          <path d="M8 7v14" />
+          <path d="M16 3v14" />
+        </>
+      ) : null}
+      {name === 'layers' ? (
+        <>
+          <path d="m12 4 8 4-8 4-8-4 8-4Z" />
+          <path d="m4 12 8 4 8-4" />
+          <path d="m4 16 8 4 8-4" />
+        </>
+      ) : null}
+      {name === 'collection' ? (
+        <>
+          <path d="M5 7.5A2.5 2.5 0 0 1 7.5 5H18a1 1 0 0 1 1 1v13H7.5A2.5 2.5 0 0 1 5 16.5v-9Z" />
+          <path d="M8 5V3" />
+          <path d="M16 5V3" />
+          <path d="M8 10h7" />
+        </>
+      ) : null}
+      {name === 'chat' ? (
+        <>
+          <path d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v4a3.5 3.5 0 0 1-3.5 3.5H12l-4.5 4v-4A3.5 3.5 0 0 1 5 10.5v-4Z" />
+          <path d="M9 8h6" />
+          <path d="M9 11h4" />
+        </>
+      ) : null}
+      {name === 'settings' ? (
+        <>
+          <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" />
+          <path d="M19 12a6.8 6.8 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-1.8-1L14.4 3h-4l-.4 3.1a7.8 7.8 0 0 0-1.8 1l-2.4-1-2 3.4 2 1.5a6.8 6.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7.8 7.8 0 0 0 1.8 1l.4 3.1h4l.4-3.1a7.8 7.8 0 0 0 1.8-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z" />
+        </>
+      ) : null}
+    </svg>
+  )
+}
 
 function MapMarker({ gem, active }: { gem: Gem; active?: boolean }) {
   return (
@@ -143,10 +198,12 @@ function MapView() {
 
         <nav className="side-nav">
           {navItems.map((item) => (
-            <button className={item === 'Explore' ? 'selected' : ''} key={item} type="button">
-              <span className="nav-icon">{item.slice(0, 1)}</span>
-              {item}
-              {item === 'AI Chat' ? <small>BETA</small> : null}
+            <button className={item.label === 'Explore' ? 'selected' : ''} key={item.label} type="button">
+              <span className="nav-icon">
+                <NavIcon name={item.icon} />
+              </span>
+              {item.label}
+              {item.label === 'AI Chat' ? <small>BETA</small> : null}
             </button>
           ))}
         </nav>
