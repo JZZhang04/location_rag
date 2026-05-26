@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import ResultPanel from './ResultPanel'
+import { searchPlacesWithRag } from '../services/ragApi'
+import type { RagPlaceResult } from '../types/rag'
 
 type Gem = {
   id: number
@@ -124,6 +127,25 @@ function MapView() {
   const mapContainer = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const [mapReady, setMapReady] = useState(false)
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<RagPlaceResult[]>([])
+  const [selectedResult, setSelectedResult] = useState<RagPlaceResult | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+
+  const markerGems =
+    results.length > 0
+      ? results
+          .filter((result) => typeof result.lng === 'number' && typeof result.lat === 'number')
+          .map((result, index) => ({
+            id: index + 1,
+            name: result.name,
+            category: result.category,
+            address: result.address ?? '',
+            lng: result.lng as number,
+            lat: result.lat as number,
+          }))
+      : gems
 
   useEffect(() => {
     const token = import.meta.env.VITE_MAPBOX_TOKEN
@@ -185,6 +207,48 @@ function MapView() {
     }
   }, [])
 
+  useEffect(() => {
+    if (
+      typeof selectedResult?.lng !== 'number' ||
+      typeof selectedResult.lat !== 'number' ||
+      !mapRef.current
+    ) {
+      return
+    }
+
+    mapRef.current.flyTo({
+      center: [selectedResult.lng, selectedResult.lat],
+      zoom: 16,
+      pitch: 62,
+      bearing: -28,
+      essential: true,
+    })
+  }, [selectedResult])
+
+  async function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!query.trim()) {
+      setResults([])
+      setSelectedResult(null)
+      setSearchError(null)
+      return
+    }
+
+    setIsSearching(true)
+    setSearchError(null)
+
+    try {
+      const nextResults = await searchPlacesWithRag(query)
+      setResults(nextResults)
+      setSelectedResult(nextResults[0] ?? null)
+    } catch {
+      setSearchError('Search failed. Please try again after the RAG API is available.')
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="Primary navigation">
@@ -220,11 +284,16 @@ function MapView() {
 
       <main className="workspace">
         <header className="topbar">
-          <label className="search">
+          <form className="search" onSubmit={handleSearch} role="search">
             <span>Search</span>
-            <input placeholder="Ask about places, buildings, or neighborhoods..." />
-            <kbd>⌘ K</kbd>
-          </label>
+            <input
+              aria-label="Search places"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Ask about places, buildings, or neighborhoods..."
+              value={query}
+            />
+            <button type="submit">Go</button>
+          </form>
           <div className="top-actions">
             <button className="active" type="button">Explore</button>
             <button type="button">Tours</button>
@@ -250,8 +319,12 @@ function MapView() {
               <div ref={mapContainer} className="mapbox-canvas" />
               <div className={`fallback-map ${mapReady ? 'hidden' : ''}`} aria-hidden="true" />
               <div className="route-line" aria-hidden="true" />
-              {gems.map((gem) => (
-                <MapMarker active={gem.id === 1} gem={gem} key={gem.id} />
+              {markerGems.map((gem) => (
+                <MapMarker
+                  active={gem.name === selectedResult?.name || (!selectedResult && gem.id === 1)}
+                  gem={gem}
+                  key={gem.name}
+                />
               ))}
               <div className="building-pin">
                 <span />
@@ -266,95 +339,13 @@ function MapView() {
             </div>
           </div>
 
-          <aside className="detail-panel" aria-label="Selected place">
-            <div className="detail-actions">
-              <button type="button">Back to map</button>
-              <button type="button">Save</button>
-            </div>
-
-            <div className="photo-grid">
-              <img
-                className="main-photo"
-                alt="Trinity Church facade"
-                src="https://images.unsplash.com/photo-1573050974892-3d49f11695a7?auto=format&fit=crop&w=900&q=80"
-              />
-              <img
-                alt="Stone detail"
-                src="https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=320&q=80"
-              />
-              <img
-                alt="Church interior"
-                src="https://images.unsplash.com/photo-1548625361-58a9b86aa83b?auto=format&fit=crop&w=320&q=80"
-              />
-              <div className="more-photos">+12</div>
-            </div>
-
-            <div className="place-title">
-              <h1>Trinity Church</h1>
-              <span>Architectural Gem</span>
-            </div>
-            <p className="address">206 Clarendon St, Boston, MA 02116</p>
-
-            <div className="facts">
-              <div>
-                <span>Built</span>
-                <strong>1872-1877</strong>
-              </div>
-              <div>
-                <span>Style</span>
-                <strong>Romanesque Revival</strong>
-              </div>
-              <div>
-                <span>Architect</span>
-                <strong>H. H. Richardson</strong>
-              </div>
-            </div>
-
-            <section className="copy-block">
-              <h2>Why it's worth seeing</h2>
-              <p>
-                One of Richardson's masterpieces. The rich stonework, intricate carvings,
-                and peaceful courtyard make it a hidden oasis in the heart of Back Bay.
-              </p>
-              <div className="tags">
-                <span>Historic Landmark</span>
-                <span>Religious Architecture</span>
-                <span>Hidden Gem</span>
-              </div>
-            </section>
-
-            <section className="insight">
-              <h2>AI Insight</h2>
-              <p>
-                Trinity Church blends medieval European influence with local Roxbury
-                conglomerate stone, giving it a distinctly Boston identity.
-              </p>
-              <a href="#sources">Sources (4)</a>
-            </section>
-
-            <section className="nearby">
-              <div>
-                <h2>Nearby Gems</h2>
-                <a href="#nearby">See all</a>
-              </div>
-              <div className="nearby-grid">
-                {gems.slice(1).map((gem, index) => (
-                  <article key={gem.id}>
-                    <img
-                      alt=""
-                      src={`https://images.unsplash.com/photo-${[
-                        '1565060169194-19fabf63012c',
-                        '1605727216801-e27ce1d0cc28',
-                        '1511818966892-d7d671e672a2',
-                      ][index]}?auto=format&fit=crop&w=260&q=80`}
-                    />
-                    <strong>{gem.name}</strong>
-                    <span>{6 + index * 2} min walk</span>
-                  </article>
-                ))}
-              </div>
-            </section>
-          </aside>
+          <ResultPanel
+            error={searchError}
+            loading={isSearching}
+            onSelectResult={setSelectedResult}
+            result={selectedResult}
+            results={results}
+          />
         </section>
       </main>
     </div>
